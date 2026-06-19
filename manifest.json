@@ -1,0 +1,22 @@
+{
+  "name": "PanTré (パントレ)",
+  "short_name": "PanTré",
+  "description": "晩御飯の献立づくりをサポートする、おしゃれな温かみのある食材ストック管理アプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1A1D23",
+  "theme_color": "#1A1D23",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "public/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "public/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

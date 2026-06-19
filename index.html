@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PanTré (パントレ) - 晩御飯の献立管理</title>
+  
+  <!-- PWA Web App Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1A1D23">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Chart.js for reports -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+  <!-- App Stylesheets -->
+  <link rel="stylesheet" href="src/styles/index.css">
+  <link rel="stylesheet" href="src/styles/components.css">
+  <link rel="stylesheet" href="src/styles/pages.css">
+  <link rel="stylesheet" href="src/styles/chat.css">
+  <link rel="stylesheet" href="src/styles/calendar.css">
+  <link rel="stylesheet" href="src/styles/report.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <span class="logo-emoji">🍳</span>
+        <h1 class="logo-text">PanTré</h1>
+      </div>
+      <div class="header-actions">
+        <button id="btn-sync" class="header-btn" title="同期する">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+        <button id="btn-user" class="header-btn" title="ユーザープロフィール">
+          <i class="fa-solid fa-circle-user"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area (Pages) -->
+    <main class="app-main">
+      <!-- 1. Dashboard Page -->
+      <section id="page-dashboard" class="app-page active">
+        <div class="welcome-banner">
+          <h2 class="welcome-title">おかえりなさい、<span id="user-display-name">料理担当者</span>さん 🍽️</h2>
+          <p class="welcome-subtitle">今日の献立づくりをサポートします</p>
+        </div>
+
+        <div class="dashboard-scroll-section">
+          <h3 class="section-title">📦 ストック状況</h3>
+          <div class="category-summary-list" id="dashboard-categories">
+            <!-- Dynamically populated category cards -->
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </div>
+
+        <div class="dashboard-alert-section">
+          <h3 class="section-title">⚠️ 賞味期限アラート</h3>
+          <div class="alert-list" id="dashboard-alerts">
+            <!-- Dynamically populated alerts -->
+            <p class="empty-message">期限が近い食材はありません 🎉</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Food Stock Page -->
+      <section id="page-stock" class="app-page">
+        <div class="stock-header">
+          <h2 class="page-title">食材ストック</h2>
+          <div class="stock-search-bar">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="search-stock" placeholder="食材を検索...">
+          </div>
+        </div>
+
+        <div class="stock-categories-container" id="stock-categories">
+          <!-- Dynamically populated categories and food items -->
+        </div>
+      </section>
+
+      <!-- 3. Expiration Expiry Page -->
+      <section id="page-expiry" class="app-page">
+        <div class="expiry-header">
+          <h2 class="page-title">賞味期限管理</h2>
+          <div class="expiry-filters">
+            <button class="filter-chip active" data-filter="all">すべて</button>
+            <button class="filter-chip" data-filter="danger">🔴 期限切れ</button>
+            <button class="filter-chip" data-filter="warning">🟠 3日以内</button>
+            <button class="filter-chip" data-filter="soon">🟡 7日以内</button>
+          </div>
+        </div>
+
+        <div class="expiry-list-container" id="expiry-list">
+          <!-- Dynamically populated list sorted by expiry date -->
+        </div>
+      </section>
+
+      <!-- 4. Settings Page -->
+      <section id="page-settings" class="app-page">
+        <h2 class="page-title">設定</h2>
+        
+        <div class="settings-group">
+          <h3>👤 プロフィール</h3>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">表示名</span>
+              <span class="setting-value" id="settings-display-name">ゲストユーザー</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-edit-profile">編集</button>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>👥 家族共有</h3>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">世帯コード</span>
+              <span class="setting-value font-mono" id="settings-household-code">------</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-copy-code">コピー</button>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">家族の招待・参加</span>
+              <span class="setting-description">招待コードを入力して家族グループに参加します</span>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-join-household">参加する</button>
+          </div>
+          <div class="setting-member-list">
+            <h4>現在の世帯メンバー</h4>
+            <ul id="household-members-list">
+              <li><i class="fa-solid fa-circle-user"></i> あなた</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>📦 カテゴリ・単位設定</h3>
+          <button class="btn btn-outline w-100 mb-2" id="btn-manage-categories">
+            <i class="fa-solid fa-list-check mr-2"></i> カテゴリの管理
+          </button>
+          <button class="btn btn-outline w-100" id="btn-manage-units">
+            <i class="fa-solid fa-scale-balanced mr-2"></i> 単位の管理
+          </button>
+        </div>
+
+        <div class="settings-group">
+          <h3>🔌 接続設定 (Supabase)</h3>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">データベース接続状況</span>
+              <span class="badge badge-success" id="db-status-badge">ローカルデモモード</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-setup-supabase">接続設定</button>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>🤖 AI設定 (Gemini)</h3>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Gemini API接続状況</span>
+              <span class="badge badge-warning" id="gemini-status-badge">未設定</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-setup-gemini">接続設定</button>
+          </div>
+        </div>
+
+        <div class="settings-group logout-group" style="display:none;" id="settings-logout-section">
+          <button class="btn btn-danger w-100" id="btn-logout">ログアウト</button>
+        </div>
+      </section>
+
+      <!-- 5. AI Chat Page -->
+      <section id="page-chat" class="app-page">
+        <div class="chat-header">
+          <h2 class="page-title">PanTré AI アシスタント</h2>
+          <button id="chat-clear-btn" class="header-btn" title="会話履歴を消去">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages">
+            <!-- Welcome greeting -->
+            <div class="chat-welcome" id="chat-welcome">
+              <div class="welcome-icon">🍳</div>
+              <h3>AIアシスタントに何でも聞いてください！</h3>
+              <p>PanTréのAIは在庫や献立を管理してくれます。</p>
+              <div class="quick-actions">
+                <button class="quick-action-chip" data-text="冷蔵庫にキャベツ1玉と牛乳1本、冷凍庫に豚バラ肉200gを追加して">📦 食材をまとめて登録</button>
+                <button class="quick-action-chip" data-text="期限が近い食材を使って、今日の晩ご飯のおすすめレシピを教えて">💡 在庫からレシピ提案</button>
+                <button class="quick-action-chip" data-text="豚肉100gと玉ねぎを消費したよ">🍳 食材を消費した報告</button>
+                <button class="quick-action-chip" data-text="明日の夜はハンバーグを作る予定を入れて">📅 献立カレンダーに登録</button>
+              </div>
+            </div>
+          </div>
+          <div class="speech-interim-container">
+            <span id="speech-interim" class="speech-interim-text"></span>
+          </div>
+          <div class="chat-input-area">
+            <button id="chat-mic-btn" class="chat-action-btn mic-btn" title="音声入力">
+              <i class="fa-solid fa-microphone"></i>
+            </button>
+            <textarea id="chat-input" placeholder="食材の登録やレシピの相談など..." rows="1"></textarea>
+            <button id="chat-send-btn" class="chat-action-btn send-btn" title="送信" disabled>
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. Calendar Page -->
+      <section id="page-calendar" class="app-page">
+        <div class="calendar-container">
+          <div class="calendar-header">
+            <h2 class="page-title">献立カレンダー</h2>
+            <div class="calendar-nav">
+              <button id="calendar-prev-btn" class="calendar-nav-btn"><i class="fa-solid fa-chevron-left"></i></button>
+              <span id="calendar-month-label" class="calendar-month-label">2026年 6月</span>
+              <button id="calendar-next-btn" class="calendar-nav-btn"><i class="fa-solid fa-chevron-right"></i></button>
+              <button id="calendar-today-btn" class="calendar-today-btn">今日</button>
+            </div>
+          </div>
+          <div class="calendar-grid" id="calendar-grid">
+            <!-- Dynamically populated monthly grid -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. Summary Report Page -->
+      <section id="page-report" class="app-page">
+        <div class="report-container">
+          <div class="report-header">
+            <h2 class="page-title">月間レポート</h2>
+          </div>
+          
+          <!-- Summary statistics cards -->
+          <div class="report-summary-grid">
+            <div class="report-stat-card">
+              <span class="report-stat-icon">💰</span>
+              <div class="report-stat-value" id="report-stat-cost">¥0</div>
+              <div class="report-stat-label">今月の食費</div>
+            </div>
+            <div class="report-stat-card">
+              <span class="report-stat-icon">🍳</span>
+              <div class="report-stat-value" id="report-stat-ratio">0%</div>
+              <div class="report-stat-label">自炊率</div>
+            </div>
+            <div class="report-stat-card">
+              <span class="report-stat-icon">🔥</span>
+              <div class="report-stat-value" id="report-stat-calories">0 kcal</div>
+              <div class="report-stat-label">平均摂取カロリー</div>
+            </div>
+            <div class="report-stat-card">
+              <span class="report-stat-icon">🗑️</span>
+              <div class="report-stat-value" id="report-stat-waste">0 品</div>
+              <div class="report-stat-label">廃棄された食材</div>
+            </div>
+          </div>
+
+          <!-- Charts -->
+          <div class="report-chart-section">
+            <h3 class="report-section-title"><i class="fa-solid fa-chart-line"></i> 摂取カロリー推移</h3>
+            <div class="report-chart-card">
+              <canvas id="chart-calories"></canvas>
+            </div>
+          </div>
+          
+          <div class="report-chart-section">
+            <h3 class="report-section-title"><i class="fa-solid fa-chart-bar"></i> 食費の自炊 vs 外食</h3>
+            <div class="report-chart-card">
+              <canvas id="chart-cost"></canvas>
+            </div>
+          </div>
+
+          <div class="report-chart-section">
+            <h3 class="report-section-title"><i class="fa-solid fa-circle-nodes"></i> PFCバランス傾向</h3>
+            <div class="pfc-grid">
+              <div class="pfc-item protein">
+                <div class="pfc-label">タンパク質</div>
+                <div class="pfc-value" id="report-pfc-protein">---</div>
+              </div>
+              <div class="pfc-item fat">
+                <div class="pfc-label">脂質</div>
+                <div class="pfc-value" id="report-pfc-fat">---</div>
+              </div>
+              <div class="pfc-item carb">
+                <div class="pfc-label">炭水化物</div>
+                <div class="pfc-value" id="report-pfc-carb">---</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Report Section -->
+          <div class="report-ai-section">
+            <h3 class="report-section-title"><i class="fa-solid fa-wand-magic-sparkles"></i> AI月間総評レポート</h3>
+            <div class="report-ai-card">
+              <span class="ai-badge"><i class="fa-solid fa-bolt"></i> PanTré AI Report</span>
+              <div class="report-ai-content" id="report-ai-content">
+                <!-- AI analysis text will be filled here -->
+              </div>
+            </div>
+            <button id="btn-generate-report" class="report-generate-btn mt-3">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> 今月の食事をAI分析する
+            </button>
+          </div>
+
+          <!-- Log list -->
+          <div class="report-chart-section">
+            <h3 class="report-section-title"><i class="fa-solid fa-clock-rotate-left"></i> 直近の食事記録 (10件)</h3>
+            <div class="report-chart-card">
+              <div id="report-meal-history" class="report-meal-list">
+                <!-- Meal history items -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Floating Action Button (FAB) for adding food -->
+    <button id="fab-add-food" class="fab-btn" title="食材を登録">
+      <i class="fa-solid fa-plus"></i>
+    </button>
+
+    <!-- Bottom Tab Navigation -->
+    <nav class="app-nav">
+      <button class="nav-item active" data-page="dashboard">
+        <i class="fa-solid fa-utensils"></i>
+        <span>ホーム</span>
+      </button>
+      <button class="nav-item" data-page="stock">
+        <i class="fa-solid fa-box-archive"></i>
+        <span>ストック</span>
+      </button>
+      <button class="nav-item" data-page="expiry">
+        <i class="fa-solid fa-hourglass-half"></i>
+        <span>期限管理</span>
+      </button>
+      <button class="nav-item" data-page="chat">
+        <i class="fa-solid fa-comment-dots"></i>
+        <span>AIチャット</span>
+      </button>
+      <button class="nav-item" data-page="calendar">
+        <i class="fa-solid fa-calendar-days"></i>
+        <span>カレンダー</span>
+      </button>
+      <button class="nav-item" data-page="report">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span>レポート</span>
+      </button>
+      <button class="nav-item" data-page="settings">
+        <i class="fa-solid fa-sliders"></i>
+        <span>設定</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Modals -->
+
+  <!-- 1. Auth Modal (Sign in / Sign up) -->
+  <div id="modal-auth" class="modal-overlay">
+    <div class="modal-content auth-modal">
+      <h3 class="modal-title" id="auth-title">サインイン</h3>
+      <form id="form-auth">
+        <div class="form-group">
+          <label for="auth-email">メールアドレス</label>
+          <input type="email" id="auth-email" required placeholder="example@email.com">
+        </div>
+        <div class="form-group">
+          <label for="auth-password">パスワード</label>
+          <input type="password" id="auth-password" required placeholder="••••••••" minlength="6">
+        </div>
+        <div class="form-group signup-only" style="display:none;">
+          <label for="auth-display-name">表示名（ニックネーム）</label>
+          <input type="text" id="auth-display-name" placeholder="お母さん、たろう など">
+        </div>
+        
+        <button type="submit" class="btn btn-primary w-100" id="auth-submit-btn">サインイン</button>
+      </form>
+      <div class="auth-toggle">
+        <a href="#" id="auth-toggle-link">新規登録はこちら</a>
+      </div>
+      <button class="modal-close-btn" id="btn-close-auth"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- 2. Food Register / Edit Modal -->
+  <div id="modal-food" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title" id="food-modal-title">食材の追加</h3>
+      <form id="form-food">
+        <input type="hidden" id="food-id">
+        <div class="form-group">
+          <label for="food-name">食材名 <span class="required">*</span></label>
+          <input type="text" id="food-name" required placeholder="例: 鶏もも肉、牛乳、キャベツ">
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="food-category">保管カテゴリ <span class="required">*</span></label>
+            <select id="food-category" required>
+              <!-- Categories dynamically added -->
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-7">
+            <label for="food-quantity">数量 <span class="required">*</span></label>
+            <input type="number" id="food-quantity" required step="any" min="0" placeholder="1">
+          </div>
+          <div class="form-group col-5">
+            <label for="food-unit">単位 <span class="required">*</span></label>
+            <select id="food-unit" required>
+              <!-- Units dynamically added -->
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="food-expiration">賞味期限</label>
+          <input type="date" id="food-expiration">
+        </div>
+        <div class="form-group">
+          <label for="food-memo">メモ</label>
+          <textarea id="food-memo" rows="2" placeholder="開封済み、半分など"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="btn-cancel-food">キャンセル</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-food">保存する</button>
+        </div>
+      </form>
+      <button class="modal-close-btn" id="btn-close-food"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- 3. Supabase Config Modal -->
+  <div id="modal-supabase" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title">Supabase接続設定</h3>
+      <p class="modal-desc">Supabaseに接続することで、データがクラウドに保存され、スマホや他の家族の端末とリアルタイムで同期できます。</p>
+      
+      <form id="form-supabase">
+        <div class="form-group">
+          <label for="sb-url">Supabase Project URL</label>
+          <input type="url" id="sb-url" placeholder="https://xxxx.supabase.co" required>
+        </div>
+        <div class="form-group">
+          <label for="sb-key">Supabase Anon Key</label>
+          <input type="password" id="sb-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required>
+        </div>
+        
+        <div class="alert-info-box mb-3">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>
+            <strong>接続手順:</strong>
+            <ol>
+              <li>Supabaseの管理画面にログインします。</li>
+              <li>Project Settings > API を開きます。</li>
+              <li>URL と anon public キーをコピーしてここに貼り付けます。</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="btn-disconnect-supabase">接続解除（ローカルに戻す）</button>
+          <button type="submit" class="btn btn-primary">保存して接続</button>
+        </div>
+      </form>
+      <button class="modal-close-btn" id="btn-close-supabase"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- 4. Join Household Modal -->
+  <div id="modal-join-household" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title">家族グループに参加</h3>
+      <form id="form-join-household">
+        <div class="form-group">
+          <label for="join-code">招待コード（世帯ID）</label>
+          <input type="text" id="join-code" required placeholder="xxxx-xxxx-xxxx-xxxx" class="font-mono text-center">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="btn-cancel-join">キャンセル</button>
+          <button type="submit" class="btn btn-primary">グループに参加</button>
+        </div>
+      </form>
+      <button class="modal-close-btn" id="btn-close-join"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- 5. Profile Edit Modal -->
+  <div id="modal-profile" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title">プロフィールの編集</h3>
+      <form id="form-profile">
+        <div class="form-group">
+          <label for="profile-name">表示名</label>
+          <input type="text" id="profile-name" required placeholder="お母さん、たろう など">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="btn-cancel-profile">キャンセル</button>
+          <button type="submit" class="btn btn-primary">変更を保存</button>
+        </div>
+      </form>
+      <button class="modal-close-btn" id="btn-close-profile"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- 6. Gemini Config Modal -->
+  <div id="modal-gemini" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title">AI (Gemini) 設定</h3>
+      <p class="modal-desc">Google AI Studioから取得したGemini APIキーを設定してください。キーはローカル（localStorage）にのみ保存されます。</p>
+      
+      <form id="form-gemini">
+        <div class="form-group">
+          <label for="gemini-key">Gemini API Key</label>
+          <input type="password" id="gemini-key" placeholder="AIzaSy..." required>
+        </div>
+        
+        <div class="alert-info-box mb-3">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>
+            <strong>APIキーの取得方法:</strong>
+            <ol>
+              <li><a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a> にアクセスします。</li>
+              <li>「Get API Key」をクリックして、キーを作成します。</li>
+              <li>作成したキーをコピーしてここに貼り付けます。</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="btn-disconnect-gemini">接続解除（キーを削除）</button>
+          <button type="submit" class="btn btn-primary">保存する</button>
+        </div>
+      </form>
+      <button class="modal-close-btn" id="btn-close-gemini"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- 7. Day Detail Modal -->
+  <div id="modal-day-detail" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title">日付詳細</h3>
+      <div id="day-detail-date" class="day-detail-date">2026年6月7日</div>
+      
+      <div class="day-detail-section">
+        <h4><i class="fa-solid fa-utensils"></i> 今日の献立</h4>
+        <div id="day-detail-meals">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      
+      <div class="day-detail-section">
+        <h4><i class="fa-solid fa-hourglass-half"></i> 賞味期限を迎える食材</h4>
+        <div id="day-detail-expiry">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="btn-add-day-meal">
+          <i class="fa-solid fa-plus"></i> 献立を追加
+        </button>
+        <button type="button" class="btn btn-outline" id="btn-close-day-detail">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. Add/Edit Meal Modal -->
+  <div id="modal-add-meal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title" id="add-meal-modal-title">献立の追加</h3>
+      <form id="form-add-meal">
+        <input type="hidden" id="add-meal-id">
+        <input type="hidden" id="add-meal-date">
+        <div class="form-group">
+          <label for="add-meal-title">料理名 <span class="required">*</span></label>
+          <input type="text" id="add-meal-title" required placeholder="例: ハンバーグ、カレーライス">
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="add-meal-type">食事種別</label>
+            <select id="add-meal-type">
+              <option value="dinner">🌙 夕食</option>
+              <option value="lunch">☀️ 昼食</option>
+              <option value="breakfast">🌅 朝食</option>
+              <option value="snack">🍪 間食</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-6">
+            <label for="add-meal-calories">推定カロリー (kcal)</label>
+            <input type="number" id="add-meal-calories" min="0" placeholder="600">
+          </div>
+          <div class="form-group col-6">
+            <label for="add-meal-cost">推定コスト (円)</label>
+            <input type="number" id="add-meal-cost" min="0" placeholder="500">
+          </div>
+        </div>
+        <div class="form-group row align-items-center mt-2 px-2" style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="add-meal-eating-out" style="width:18px; height:18px; margin:0; cursor:pointer; flex-shrink:0;">
+          <label for="add-meal-eating-out" style="margin-bottom:0; cursor:pointer; font-size: 0.9rem; line-height:1;">🍱 外食・惣菜</label>
+        </div>
+        
+        <!-- PFCバランス -->
+        <div class="form-group mt-2">
+          <label style="font-weight:500; font-size:0.85rem; display:block; margin-bottom:6px;">
+            💪 PFCバランス <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:normal;">（AIが自動推定します。手動で上書きも可）</span>
+          </label>
+          <div style="display:flex; gap:8px;">
+            <div style="flex:1;">
+              <label for="add-meal-protein" style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:3px; display:block;">🥩 たんぱく質</label>
+              <select id="add-meal-protein" style="width:100%; font-size:0.85rem; padding:6px; background-color:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;">
+                <option value="">未設定</option>
+                <option value="high">多い</option>
+                <option value="medium">普通</option>
+                <option value="low">少ない</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label for="add-meal-fat" style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:3px; display:block;">🧈 脂質</label>
+              <select id="add-meal-fat" style="width:100%; font-size:0.85rem; padding:6px; background-color:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;">
+                <option value="">未設定</option>
+                <option value="high">多い</option>
+                <option value="medium">普通</option>
+                <option value="low">少ない</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label for="add-meal-carb" style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:3px; display:block;">🍚 炭水化物</label>
+              <select id="add-meal-carb" style="width:100%; font-size:0.85rem; padding:6px; background-color:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;">
+                <option value="">未設定</option>
+                <option value="high">多い</option>
+                <option value="medium">普通</option>
+                <option value="low">少ない</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-group mt-2" id="consume-food-section">
+          <label style="font-weight: 500; font-size: 0.9rem; display: block; margin-bottom: 6px;">🍽️ 消費するストック食材</label>
+          <div id="add-meal-ingredients-list" class="mb-2" style="display:flex; flex-direction:column; gap:6px; max-height: 120px; overflow-y: auto; padding: 4px 0;">
+            <!-- Added items will appear here -->
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <select id="select-consume-food" style="flex:1; font-size: 0.85rem; padding: 6px; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px;">
+              <option value="">-- ストックから選択 --</option>
+            </select>
+            <input type="number" id="input-consume-qty" placeholder="量" style="width:70px; font-size: 0.85rem; padding: 6px; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px;" step="any" min="0">
+            <span id="label-consume-unit" style="font-size:0.8rem; color:var(--text-secondary); min-width:30px; display: inline-block; text-align: center;">個</span>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-consume-food" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px;">追加</button>
+          </div>
+        </div>
+        
+        <div class="modal-actions mt-3">
+          <button type="button" class="btn btn-outline" id="btn-cancel-add-meal">キャンセル</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-add-meal">登録する</button>
+        </div>
+      </form>
+      <button class="modal-close-btn" id="btn-close-add-meal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('ServiceWorker registered', reg))
+          .catch(err => console.log('ServiceWorker registration failed', err));
+      });
+    }
+  </script>
+
+  <!-- App Application Scripts -->
+  <script src="src/utils/constants.js"></script>
+  <script src="src/supabase.js"></script>
+  <script src="src/gemini.js"></script>
+  <script src="src/speech.js"></script>
+  <script src="src/chat.js"></script>
+  <script src="src/calendar.js"></script>
+  <script src="src/report.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
