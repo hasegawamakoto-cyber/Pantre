@@ -1,0 +1,290 @@
+/* -------------------------------------------------------------
+ * PanTré - report.css
+ * サマリーレポートページ専用スタイル
+ * ------------------------------------------------------------- */
+
+.report-container {
+  padding: 0 16px 16px;
+}
+
+.report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+
+.report-header .page-title {
+  margin: 0;
+}
+
+.report-period-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-period-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.report-period-btn.active,
+.report-period-btn:hover {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
+}
+
+/* --- サマリーカード --- */
+.report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.report-stat-card {
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--glass-border);
+  text-align: center;
+}
+
+.report-stat-icon {
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+
+.report-stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.report-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* --- グラフセクション --- */
+.report-chart-section {
+  margin-bottom: 20px;
+}
+
+.report-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-chart-card {
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--glass-border);
+}
+
+.report-chart-card canvas {
+  width: 100% !important;
+  max-height: 220px;
+}
+
+/* --- PFCバランス --- */
+.pfc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pfc-item {
+  text-align: center;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--glass-bg);
+}
+
+.pfc-item .pfc-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.pfc-item .pfc-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+}
+
+.pfc-item.protein .pfc-value { color: #ef4444; }
+.pfc-item.fat .pfc-value { color: #f59e0b; }
+.pfc-item.carb .pfc-value { color: #3b82f6; }
+
+/* --- AIレポートセクション --- */
+.report-ai-section {
+  margin-bottom: 20px;
+}
+
+.report-ai-card {
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--glass-border);
+  position: relative;
+}
+
+.report-ai-card .ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.report-ai-content {
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.report-ai-content h3 {
+  font-size: 0.95rem;
+  margin: 16px 0 8px 0;
+  color: var(--accent-primary);
+}
+
+.report-ai-content h4 {
+  font-size: 0.85rem;
+  margin: 12px 0 6px 0;
+}
+
+.report-ai-content ul {
+  padding-left: 18px;
+  margin: 4px 0;
+}
+
+.report-ai-content li {
+  margin: 2px 0;
+}
+
+.report-ai-content strong {
+  color: var(--accent-primary);
+}
+
+.report-generate-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: 2px dashed var(--glass-border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.report-generate-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.report-generate-btn.loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.report-generate-btn.loading i {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- 食事履歴リスト --- */
+.report-meal-list {
+  margin-top: 12px;
+}
+
+.report-meal-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.85rem;
+}
+
+.report-meal-item:last-child {
+  border-bottom: none;
+}
+
+.report-meal-date {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  min-width: 50px;
+}
+
+.report-meal-title {
+  flex: 1;
+  font-weight: 500;
+}
+
+.report-meal-badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.report-meal-badge.home {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-primary);
+}
+
+.report-meal-badge.out {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.report-meal-cal {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-family: 'Outfit', sans-serif;
+}
+
+/* スマホ対応 */
+@media (max-width: 480px) {
+  .report-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .report-stat-value {
+    font-size: 1.2rem;
+  }
+}

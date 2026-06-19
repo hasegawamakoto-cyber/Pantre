@@ -1,0 +1,274 @@
+/* -------------------------------------------------------------
+ * PanTré (パントレ) - index.css
+ * グローバル変数、リセット、ベースレイアウトの定義
+ * ------------------------------------------------------------- */
+
+/* Noto Sans JP と Outfit のフォントファミリーは HTML でインポート済み */
+
+:root {
+  /* カラーシステム (温かみのあるソフトダーク) */
+  --bg-primary: #1A1D23;
+  --bg-secondary: #252830;
+  --bg-card: rgba(45, 49, 57, 0.8);
+  --bg-card-hover: rgba(55, 60, 70, 0.9);
+  --bg-input: #1F2229;
+  
+  --color-primary: #6DB56D; /* 新鮮な温かみのあるグリーン */
+  --color-primary-hover: #5ea15e;
+  --color-primary-rgb: 109, 181, 109;
+  
+  --color-accent: #E8935A; /* 料理のぬくもり・警告オレンジ */
+  --color-accent-hover: #d78249;
+  
+  --color-danger: #E85A5A; /* 期限切れ赤 */
+  --color-warning: #E8D55A; /* 注意黄色 */
+  --color-success: #6DB56D;
+  --color-info: #5ABAE8;
+  
+  --text-primary: #E8E6E1; /* 柔らかなオフホワイト */
+  --text-secondary: #8B8D94; /* ミュートグレー */
+  --text-muted: #62656C;
+  --border-color: rgba(232, 230, 225, 0.08);
+  --border-focus: rgba(109, 181, 109, 0.5);
+
+  /* カレンダー・レポート用ブリッジ変数 */
+  --accent-primary: var(--color-primary);
+  --accent-secondary: var(--color-accent);
+  --glass-bg: rgba(45, 49, 57, 0.6);
+  --glass-border: rgba(232, 230, 225, 0.08);
+  --card-bg: var(--bg-secondary);
+
+  /* タイポグラフィ */
+  --font-sans: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  
+  /* 角丸・シャドウ */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 9999px;
+  
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
+  --shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+
+  /* トランジション */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* その他 */
+  --nav-height: 64px;
+  --header-height: 56px;
+  --max-width: 480px; /* モバイルファーストの最大幅 */
+}
+
+/* リセット & ベース */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  background-color: #0F1115; /* デスクトップ表示の背景 */
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* スクロールバーのカスタマイズ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* アプリ容器 (モバイルファースト・中央配置) */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  background-color: var(--bg-primary);
+  position: relative;
+  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+
+@media (min-width: 481px) {
+  .app-container {
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+  }
+}
+
+/* アプリヘッダー */
+.app-header {
+  height: var(--header-height);
+  padding: 0 16px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-emoji {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  animation: float 3s ease-in-out infinite;
+}
+
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.header-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.15rem;
+  padding: 8px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.header-btn:active {
+  transform: scale(0.95);
+}
+
+/* メインコンテンツエリア (スクロール可能) */
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  padding-bottom: 80px; /* FABとナビの余白 */
+  background: radial-gradient(circle at top right, rgba(109, 181, 109, 0.05), transparent 60%),
+              radial-gradient(circle at bottom left, rgba(232, 147, 90, 0.03), transparent 60%),
+              var(--bg-primary);
+}
+
+/* ページ基本スタイル */
+.app-page {
+  display: none;
+  padding: 16px;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.app-page.active {
+  display: block;
+  opacity: 1;
+}
+
+/* アプリナビゲーション (下部タブ) */
+.app-nav {
+  height: var(--nav-height);
+  background: rgba(26, 29, 35, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  height: 100%;
+}
+
+.nav-item i {
+  font-size: 1.25rem;
+  transition: transform var(--transition-normal);
+}
+
+.nav-item.active {
+  color: var(--color-primary);
+}
+
+.nav-item.active i {
+  transform: translateY(-2px) scale(1.1);
+  color: var(--color-primary);
+}
+
+.nav-item:active {
+  transform: scale(0.95);
+}
+
+/* キーフレームアニメーション */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(5deg); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
