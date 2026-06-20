@@ -22,6 +22,18 @@ class ReportController {
     this.aiReportContentEl = null;
     this.btnGenerateReportEl = null;
     this.mealHistoryListEl = null;
+
+    // 昼夜平均用のDOM要素
+    this.statCostLunchEl = null;
+    this.statCostDinnerEl = null;
+    this.statCalLunchEl = null;
+    this.statCalDinnerEl = null;
+    this.pfcProLunchEl = null;
+    this.pfcProDinnerEl = null;
+    this.pfcFatLunchEl = null;
+    this.pfcFatDinnerEl = null;
+    this.pfcCarbLunchEl = null;
+    this.pfcCarbDinnerEl = null;
   }
 
   init() {
@@ -37,6 +49,17 @@ class ReportController {
     this.aiReportContentEl = document.getElementById('report-ai-content');
     this.btnGenerateReportEl = document.getElementById('btn-generate-report');
     this.mealHistoryListEl = document.getElementById('report-meal-history');
+
+    this.statCostLunchEl = document.getElementById('stat-cost-lunch');
+    this.statCostDinnerEl = document.getElementById('stat-cost-dinner');
+    this.statCalLunchEl = document.getElementById('stat-cal-lunch');
+    this.statCalDinnerEl = document.getElementById('stat-cal-dinner');
+    this.pfcProLunchEl = document.getElementById('pfc-pro-lunch');
+    this.pfcProDinnerEl = document.getElementById('pfc-pro-dinner');
+    this.pfcFatLunchEl = document.getElementById('pfc-fat-lunch');
+    this.pfcFatDinnerEl = document.getElementById('pfc-fat-dinner');
+    this.pfcCarbLunchEl = document.getElementById('pfc-carb-lunch');
+    this.pfcCarbDinnerEl = document.getElementById('pfc-carb-dinner');
 
     if (!this.btnGenerateReportEl) return;
 
@@ -83,18 +106,51 @@ class ReportController {
     let homeCookedCount = 0;
     let totalCal = 0;
     let calCount = 0;
+
+    // 昼と夜の集計用
+    let lunchCost = 0, lunchCostCount = 0;
+    let dinnerCost = 0, dinnerCostCount = 0;
+    let lunchCal = 0, lunchCalCount = 0;
+    let dinnerCal = 0, dinnerCalCount = 0;
+
+    let pfcCounts = {
+      total: { p: 0, f: 0, c: 0, count: 0 },
+      lunch: { p: 0, f: 0, c: 0, count: 0 },
+      dinner: { p: 0, f: 0, c: 0, count: 0 }
+    };
     
     logs.forEach(log => {
-      if (log.actual_cost) totalCost += log.actual_cost;
+      if (log.actual_cost) {
+        totalCost += log.actual_cost;
+        if (log.meal_type === 'lunch') { lunchCost += log.actual_cost; lunchCostCount++; }
+        if (log.meal_type === 'dinner') { dinnerCost += log.actual_cost; dinnerCostCount++; }
+      }
       if (!log.is_eating_out) homeCookedCount++;
       if (log.actual_calories) {
         totalCal += log.actual_calories;
         calCount++;
+        if (log.meal_type === 'lunch') { lunchCal += log.actual_calories; lunchCalCount++; }
+        if (log.meal_type === 'dinner') { dinnerCal += log.actual_calories; dinnerCalCount++; }
+      }
+
+      if (log.actual_pfc) {
+        const pfc = log.actual_pfc;
+        const addPfc = (target) => {
+          if (pfc.protein === 'high') target.p += 3; else if (pfc.protein === 'medium') target.p += 2; else target.p += 1;
+          if (pfc.fat === 'low') target.f += 3; else if (pfc.fat === 'medium') target.f += 2; else target.f += 1;
+          if (pfc.carb === 'medium') target.c += 3; else if (pfc.carb === 'high') target.c += 2; else target.c += 1;
+          target.count++;
+        };
+        addPfc(pfcCounts.total);
+        if (log.meal_type === 'lunch') addPfc(pfcCounts.lunch);
+        if (log.meal_type === 'dinner') addPfc(pfcCounts.dinner);
       }
     });
 
     // コスト表示
     this.costValEl.textContent = `¥${totalCost.toLocaleString()}`;
+    if (this.statCostLunchEl) this.statCostLunchEl.textContent = lunchCostCount ? `¥${Math.round(lunchCost/lunchCostCount).toLocaleString()}` : '-';
+    if (this.statCostDinnerEl) this.statCostDinnerEl.textContent = dinnerCostCount ? `¥${Math.round(dinnerCost/dinnerCostCount).toLocaleString()}` : '-';
     
     // 自炊率
     const ratio = logs.length > 0 ? Math.round((homeCookedCount / logs.length) * 100) : 0;
@@ -103,34 +159,35 @@ class ReportController {
     // 平均摂取カロリー
     const avgCal = calCount > 0 ? Math.round(totalCal / calCount) : 0;
     this.caloriesValEl.textContent = avgCal > 0 ? `${avgCal} kcal` : '---';
+    if (this.statCalLunchEl) this.statCalLunchEl.textContent = lunchCalCount ? Math.round(lunchCal/lunchCalCount) : '-';
+    if (this.statCalDinnerEl) this.statCalDinnerEl.textContent = dinnerCalCount ? Math.round(dinnerCal/dinnerCalCount) : '-';
 
-    // 期限切れ廃棄数 (ダミー/またはローカルストレージから)
-    // ここではデモ用に、削除されたもののうち期限切れだった数などを表現するか、0を表示
     this.wasteValEl.textContent = '0 品';
 
-    // PFCバランスの簡易評価
-    let pCount = 0, fCount = 0, cCount = 0;
-    logs.forEach(log => {
-      if (log.actual_pfc) {
-        const pfc = log.actual_pfc;
-        if (pfc.protein === 'high') pCount += 3;
-        else if (pfc.protein === 'medium') pCount += 2;
-        else pCount += 1;
+    // PFCバランス評価関数
+    const evalPfc = (counts) => {
+      if (counts.count === 0) return { p: '-', f: '-', c: '-' };
+      return {
+        p: counts.p >= 2.2 * counts.count ? '高タンパク' : '適正',
+        f: counts.f >= 2.2 * counts.count ? '低脂質' : 'やや過剰',
+        c: counts.c >= 2.2 * counts.count ? '適正' : 'やや高め'
+      };
+    };
 
-        if (pfc.fat === 'low') fCount += 3;
-        else if (pfc.fat === 'medium') fCount += 2;
-        else fCount += 1;
+    const totalEval = evalPfc(pfcCounts.total);
+    const lunchEval = evalPfc(pfcCounts.lunch);
+    const dinnerEval = evalPfc(pfcCounts.dinner);
 
-        if (pfc.carb === 'medium') cCount += 3;
-        else if (pfc.carb === 'high') cCount += 2;
-        else cCount += 1;
-      }
-    });
+    this.pfcProteinValEl.textContent = totalEval.p;
+    this.pfcFatValEl.textContent = totalEval.f;
+    this.pfcCarbValEl.textContent = totalEval.c;
 
-    const totalPfcRating = (pCount + fCount + cCount) || 1;
-    this.pfcProteinValEl.textContent = logs.length > 0 ? (pCount >= 2.2 * logs.length ? '高タンパク' : '適正') : '---';
-    this.pfcFatValEl.textContent = logs.length > 0 ? (fCount >= 2.2 * logs.length ? '低脂質' : 'やや過剰') : '---';
-    this.pfcCarbValEl.textContent = logs.length > 0 ? (cCount >= 2.2 * logs.length ? '適正' : 'やや高め') : '---';
+    if (this.pfcProLunchEl) this.pfcProLunchEl.textContent = lunchEval.p;
+    if (this.pfcProDinnerEl) this.pfcProDinnerEl.textContent = dinnerEval.p;
+    if (this.pfcFatLunchEl) this.pfcFatLunchEl.textContent = lunchEval.f;
+    if (this.pfcFatDinnerEl) this.pfcFatDinnerEl.textContent = dinnerEval.f;
+    if (this.pfcCarbLunchEl) this.pfcCarbLunchEl.textContent = lunchEval.c;
+    if (this.pfcCarbDinnerEl) this.pfcCarbDinnerEl.textContent = dinnerEval.c;
   }
 
   renderCharts(logs) {

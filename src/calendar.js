@@ -8,6 +8,7 @@ class CalendarController {
     this.currentDate = new Date();
     this.selectedDate = null;
     this.consumeIngredients = []; // 新規登録時に消費する食材リスト
+    this.viewMode = 'month'; // 'month' または 'week'
     
     // DOM要素キャッシュ
     this.monthLabelEl = null;
@@ -59,6 +60,8 @@ class CalendarController {
     this.prevBtn = document.getElementById('calendar-prev-btn');
     this.nextBtn = document.getElementById('calendar-next-btn');
     this.todayBtn = document.getElementById('calendar-today-btn');
+    this.btnViewMonth = document.getElementById('btn-view-month');
+    this.btnViewWeek = document.getElementById('btn-view-week');
     
     // モーダル
     this.modalEl = document.getElementById('modal-day-detail');
@@ -90,6 +93,18 @@ class CalendarController {
     this.labelUnitEl = document.getElementById('label-consume-unit');
     this.btnAddConsumeFoodEl = document.getElementById('btn-add-consume-food');
     
+    // 消費モーダル要素
+    this.modalConsumeEl = document.getElementById('modal-consume-meal');
+    this.consumeConfirmListEl = document.getElementById('consume-confirm-list');
+    this.selectExtraConsumeEl = document.getElementById('select-extra-consume-food');
+    this.inputExtraConsumeQtyEl = document.getElementById('input-extra-consume-qty');
+    this.btnAddExtraConsumeEl = document.getElementById('btn-add-extra-consume');
+    this.btnSubmitConsumeEl = document.getElementById('btn-submit-consume-meal');
+    this.btnCancelConsumeEl = document.getElementById('btn-cancel-consume-meal');
+    this.btnCloseConsumeEl = document.getElementById('btn-close-consume-meal');
+    this.currentConsumingMeal = null;
+    this.onConsumeSuccessCallback = null;
+    
     // 編集モード要素
     this.modalTitleEl = document.getElementById('add-meal-modal-title');
     this.mealIdEl = document.getElementById('add-meal-id');
@@ -103,12 +118,20 @@ class CalendarController {
 
   setupEventListeners() {
     this.prevBtn.addEventListener('click', () => {
-      this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+      if (this.viewMode === 'month') {
+        this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+      } else {
+        this.currentDate.setDate(this.currentDate.getDate() - 7);
+      }
       this.render();
     });
 
     this.nextBtn.addEventListener('click', () => {
-      this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+      if (this.viewMode === 'month') {
+        this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+      } else {
+        this.currentDate.setDate(this.currentDate.getDate() + 7);
+      }
       this.render();
     });
 
@@ -116,6 +139,24 @@ class CalendarController {
       this.currentDate = new Date();
       this.render();
     });
+
+    if (this.btnViewMonth) {
+      this.btnViewMonth.addEventListener('click', () => {
+        this.viewMode = 'month';
+        this.btnViewMonth.classList.add('active');
+        this.btnViewWeek.classList.remove('active');
+        this.render();
+      });
+    }
+
+    if (this.btnViewWeek) {
+      this.btnViewWeek.addEventListener('click', () => {
+        this.viewMode = 'week';
+        this.btnViewWeek.classList.add('active');
+        this.btnViewMonth.classList.remove('active');
+        this.render();
+      });
+    }
 
     // モーダルクローズ
     this.btnCloseEl.addEventListener('click', () => this.closeDetailModal());
@@ -191,6 +232,20 @@ class CalendarController {
     }
 
     // 献立保存
+    // 消費モーダルのイベントリスナー
+    if (this.btnCancelConsumeEl) {
+      this.btnCancelConsumeEl.addEventListener('click', () => this.closeConsumeModal());
+    }
+    if (this.btnCloseConsumeEl) {
+      this.btnCloseConsumeEl.addEventListener('click', () => this.closeConsumeModal());
+    }
+    if (this.btnAddExtraConsumeEl) {
+      this.btnAddExtraConsumeEl.addEventListener('click', () => this.addExtraConsumeItem());
+    }
+    if (this.btnSubmitConsumeEl) {
+      this.btnSubmitConsumeEl.addEventListener('click', () => this.submitConsumeMeal());
+    }
+
     this.formAddMealEl.addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -236,14 +291,41 @@ class CalendarController {
     const month = this.currentDate.getMonth();
     
     // 表示ラベル設定
-    this.monthLabelEl.textContent = `${year}年 ${month + 1}月`;
+    if (this.viewMode === 'month') {
+      this.monthLabelEl.textContent = `${year}年 ${month + 1}月`;
+    } else {
+      // 週間ビューのラベル（例： 2026年 6月）
+      this.monthLabelEl.textContent = `${year}年 ${month + 1}月 (第${Math.ceil(this.currentDate.getDate() / 7)}週)`;
+    }
     
-    // 前月最終日、当月最終日の計算
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const lastDate = new Date(year, month + 1, 0).getDate();
-    const prevLastDate = new Date(year, month, 0).getDate();
-    
+    // 表示期間の計算
+    let startOfCalendar, endOfCalendar, totalCells, startDay;
+
+    if (this.viewMode === 'month') {
+      const firstDayIndex = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+      startOfCalendar = new Date(year, month, 1 - firstDayIndex);
+      endOfCalendar = new Date(year, month, lastDate + (6 - new Date(year, month, lastDate).getDay()));
+      startDay = 1 - firstDayIndex;
+      totalCells = Math.ceil((lastDate + firstDayIndex) / 7) * 7;
+    } else {
+      // 週ビュー
+      const currentDayOfWeek = this.currentDate.getDay();
+      const date = this.currentDate.getDate();
+      startOfCalendar = new Date(year, month, date - currentDayOfWeek);
+      endOfCalendar = new Date(year, month, date + (6 - currentDayOfWeek));
+      startDay = date - currentDayOfWeek;
+      totalCells = 7;
+    }
+
     this.gridEl.innerHTML = '';
+    
+    // 週間ビュー時のスタイル適用
+    if (this.viewMode === 'week') {
+      this.gridEl.classList.add('week-view');
+    } else {
+      this.gridEl.classList.remove('week-view');
+    }
     
     // 曜日ヘッダー
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
@@ -255,25 +337,22 @@ class CalendarController {
     });
 
     // 期間のデータ取得
-    const startOfCalendar = new Date(year, month, 1 - firstDayIndex);
-    const endOfCalendar = new Date(year, month, lastDate + (6 - new Date(year, month, lastDate).getDay()));
-    
-    const startStr = startOfCalendar.toISOString().split('T')[0];
-    const endStr = endOfCalendar.toISOString().split('T')[0];
+    const pad = n => String(n).padStart(2, '0');
+    const startStr = `${startOfCalendar.getFullYear()}-${pad(startOfCalendar.getMonth()+1)}-${pad(startOfCalendar.getDate())}`;
+    const endStr = `${endOfCalendar.getFullYear()}-${pad(endOfCalendar.getMonth()+1)}-${pad(endOfCalendar.getDate())}`;
 
     const mealPlans = await db.getMealPlans(startStr, endStr);
     const foodItems = currentFoodItems; // すでに読み込まれている食材リスト
     
-    // グリッドセルの生成 (前月分 + 当月分 + 翌月分)
+    // グリッドセルの生成
     const today = new Date();
     today.setHours(0,0,0,0);
 
-    let dayCount = 1 - firstDayIndex;
-    const totalCells = Math.ceil((lastDate + firstDayIndex) / 7) * 7;
+    let dayCount = startDay;
 
     for (let i = 0; i < totalCells; i++) {
       const cellDate = new Date(year, month, dayCount);
-      const dateStr = cellDate.toISOString().split('T')[0];
+      const dateStr = `${cellDate.getFullYear()}-${pad(cellDate.getMonth()+1)}-${pad(cellDate.getDate())}`;
       const isToday = cellDate.getTime() === today.getTime();
       const isOtherMonth = cellDate.getMonth() !== month;
       
@@ -399,64 +478,13 @@ class CalendarController {
         // 完了ハンドラー
         const completeBtn = item.querySelector('.btn-complete-meal');
         if (completeBtn) {
-          completeBtn.addEventListener('click', async (e) => {
+          completeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            meal.status = 'completed';
-            
-            // 1. 献立を更新
-            await db.saveMealPlan(meal);
-            
-            // 2. 食事記録 (meal_logs) に登録
-            const logData = {
-              meal_plan_id: meal.id,
-              logged_date: meal.planned_date,
-              meal_type: meal.meal_type,
-              title: meal.title,
-              actual_calories: meal.estimated_calories,
-              actual_pfc: meal.estimated_pfc,
-              actual_cost: meal.estimated_cost,
-              is_eating_out: meal.is_eating_out,
-              notes: 'カレンダーから実績登録'
-            };
-            await db.saveMealLog(logData);
-
-            // 3. 食材消費のアクション
-            // 食材を消費（登録食材と部分一致するものを減らす提案、または自動消費）
-            if (meal.ingredients && meal.ingredients.length > 0) {
-              let consumedList = [];
-              for (const ing of meal.ingredients) {
-                let existing = null;
-                let consumeQty = 1;
-
-                if (typeof ing === 'object' && ing !== null) {
-                  // 新しい構造化オブジェクトの場合
-                  existing = currentFoodItems.find(f => f.id === ing.food_id || f.name === ing.name);
-                  consumeQty = ing.quantity || 1;
-                } else if (typeof ing === 'string') {
-                  // 従来のプレーンテキストの場合
-                  existing = currentFoodItems.find(f => f.name.includes(ing) || ing.includes(f.name));
-                  consumeQty = 1;
-                }
-
-                if (existing) {
-                  const newQty = existing.quantity - consumeQty;
-                  if (newQty > 0) {
-                    existing.quantity = parseFloat(newQty.toFixed(2));
-                    await db.saveFoodItem(existing);
-                  } else {
-                    await db.deleteFoodItem(existing.id);
-                  }
-                  consumedList.push(`${existing.name} (${consumeQty}${existing.unit || ''})`);
-                }
-              }
-              if (consumedList.length > 0) {
-                showToast(`食材をストックから消費しました: ${consumedList.join(', ')} 🍳`, 'success');
-              }
-            }
-
-            showToast('ご飯作りました！実績に記録しました 😋', 'success');
-            this.openDetailModal(dateStr);
-            this.render();
+            // 消費モーダルを開く
+            this.openConsumeModal(meal, () => {
+              this.openDetailModal(dateStr);
+              this.render();
+            });
           });
         }
 
@@ -630,6 +658,195 @@ class CalendarController {
       });
       this.ingredientsListEl.appendChild(chip);
     });
+  }
+
+  // --- 消費確認モーダル ---
+  openConsumeModal(meal, onSuccess) {
+    this.currentConsumingMeal = meal;
+    this.onConsumeSuccessCallback = onSuccess;
+    
+    // 現在の献立の消費予定リストを展開
+    this.consumeConfirmListEl.innerHTML = '';
+    const ingredients = meal.ingredients || [];
+    
+    if (ingredients.length === 0) {
+      this.consumeConfirmListEl.innerHTML = '<p class="empty-message" style="font-size:0.8rem; text-align:left; padding-left:10px;">事前に登録された消費予定食材はありません。</p>';
+    }
+
+    ingredients.forEach((ing, index) => {
+      this.addConsumeInputRow(ing, index);
+    });
+
+    // 追加用のセレクトボックス初期化
+    this.selectExtraConsumeEl.innerHTML = '<option value="">-- 追加食材を選択 --</option>' +
+      currentFoodItems.map(item => `<option value="${item.id}">${item.name} (在庫: ${item.quantity}${item.unit})</option>`).join('');
+    this.inputExtraConsumeQtyEl.value = '';
+
+    this.modalConsumeEl.classList.add('active');
+  }
+
+  closeConsumeModal() {
+    this.modalConsumeEl.classList.remove('active');
+    this.currentConsumingMeal = null;
+    this.onConsumeSuccessCallback = null;
+  }
+
+  addConsumeInputRow(ing, index) {
+    let name = '';
+    let defaultQty = 1;
+    let unit = '';
+    let foodId = null;
+
+    if (typeof ing === 'object' && ing !== null) {
+      name = ing.name;
+      defaultQty = ing.quantity || 1;
+      unit = ing.unit || '';
+      foodId = ing.food_id;
+    } else {
+      name = ing;
+    }
+
+    // 在庫を検索
+    let existing = null;
+    if (foodId) {
+      existing = currentFoodItems.find(f => f.id === foodId);
+    } else {
+      existing = currentFoodItems.find(f => f.name.includes(name) || name.includes(f.name));
+    }
+
+    const maxQty = existing ? existing.quantity : 999;
+    const matchedUnit = existing ? existing.unit : unit;
+
+    const row = document.createElement('div');
+    row.className = 'consume-row';
+    row.style = 'display:flex; align-items:center; gap:8px; margin-bottom:12px; background:rgba(255,255,255,0.03); padding:10px; border-radius:8px;';
+    
+    row.innerHTML = `
+      <div style="flex: 1; font-size: 0.9rem;">
+        <div style="font-weight:bold;">${name}</div>
+        <div style="font-size: 0.75rem; color:var(--text-secondary);">在庫: ${existing ? `${existing.quantity}${existing.unit}` : '不明'}</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:4px; width: 140px;">
+        <input type="number" class="consume-qty-input" value="${defaultQty}" step="any" min="0" max="${maxQty}" style="width:70px; padding:6px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-input); color:white;">
+        <span style="font-size:0.8rem; color:var(--text-secondary);">${matchedUnit}</span>
+        <input type="hidden" class="consume-food-id" value="${existing ? existing.id : ''}">
+        <input type="hidden" class="consume-food-name" value="${name}">
+        <input type="hidden" class="consume-food-unit" value="${matchedUnit}">
+      </div>
+      <button type="button" class="btn-remove-consume-row" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    `;
+
+    row.querySelector('.btn-remove-consume-row').addEventListener('click', () => {
+      row.remove();
+      if (this.consumeConfirmListEl.children.length === 0) {
+        this.consumeConfirmListEl.innerHTML = '<p class="empty-message" style="font-size:0.8rem; text-align:left; padding-left:10px;">消費する食材はありません。</p>';
+      }
+    });
+
+    this.consumeConfirmListEl.appendChild(row);
+  }
+
+  addExtraConsumeItem() {
+    const foodId = this.selectExtraConsumeEl.value;
+    const qtyStr = this.inputExtraConsumeQtyEl.value;
+    const qty = parseFloat(qtyStr);
+
+    if (!foodId || isNaN(qty) || qty <= 0) {
+      showToast('追加する食材と正しい数量を指定してください', 'warning');
+      return;
+    }
+
+    const food = currentFoodItems.find(f => f.id === foodId);
+    if (!food) return;
+
+    // Remove empty message if present
+    const emptyMsg = this.consumeConfirmListEl.querySelector('.empty-message');
+    if (emptyMsg) emptyMsg.remove();
+
+    this.addConsumeInputRow({
+      name: food.name,
+      quantity: qty,
+      unit: food.unit,
+      food_id: food.id
+    }, Date.now());
+
+    // Reset input
+    this.selectExtraConsumeEl.value = '';
+    this.inputExtraConsumeQtyEl.value = '';
+  }
+
+  async submitConsumeMeal() {
+    if (!this.currentConsumingMeal) return;
+    
+    this.btnSubmitConsumeEl.disabled = true;
+    this.btnSubmitConsumeEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 処理中...';
+
+    try {
+      const meal = this.currentConsumingMeal;
+      meal.status = 'completed';
+      
+      // 1. 献立を更新
+      await db.saveMealPlan(meal);
+      
+      // 2. 食事記録 (meal_logs) に登録
+      const logData = {
+        meal_plan_id: meal.id,
+        logged_date: meal.planned_date,
+        meal_type: meal.meal_type,
+        title: meal.title,
+        actual_calories: meal.estimated_calories,
+        actual_pfc: meal.estimated_pfc,
+        actual_cost: meal.estimated_cost,
+        is_eating_out: meal.is_eating_out,
+        notes: 'カレンダーから実績登録'
+      };
+      await db.saveMealLog(logData);
+
+      // 3. 食材消費のアクション
+      const rows = this.consumeConfirmListEl.querySelectorAll('.consume-row');
+      let consumedNames = [];
+      
+      for (const row of rows) {
+        const foodId = row.querySelector('.consume-food-id').value;
+        const consumeQty = parseFloat(row.querySelector('.consume-qty-input').value);
+        const name = row.querySelector('.consume-food-name').value;
+        const unit = row.querySelector('.consume-food-unit').value;
+
+        if (!foodId || isNaN(consumeQty) || consumeQty <= 0) continue;
+
+        const existing = currentFoodItems.find(f => f.id === foodId);
+        if (existing) {
+          const newQty = existing.quantity - consumeQty;
+          if (newQty > 0) {
+            existing.quantity = parseFloat(newQty.toFixed(2));
+            await db.saveFoodItem(existing);
+          } else {
+            await db.deleteFoodItem(existing.id);
+            // メモリ上からも削除
+            const idx = currentFoodItems.findIndex(f => f.id === existing.id);
+            if (idx !== -1) currentFoodItems.splice(idx, 1);
+          }
+          consumedNames.push(`${name} (${consumeQty}${unit})`);
+        }
+      }
+
+      if (consumedNames.length > 0) {
+        showToast(`食材を消費しました: ${consumedNames.join(', ')} 🍳`, 'success');
+      } else {
+        showToast('ご飯作りました！実績に記録しました 😋', 'success');
+      }
+
+      const cb = this.onConsumeSuccessCallback;
+      this.closeConsumeModal();
+      if (cb) cb();
+
+    } catch (err) {
+      console.error(err);
+      showToast('処理に失敗しました', 'error');
+    } finally {
+      this.btnSubmitConsumeEl.disabled = false;
+      this.btnSubmitConsumeEl.textContent = '完了して在庫を減らす';
+    }
   }
 }
 

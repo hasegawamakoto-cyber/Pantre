@@ -58,6 +58,14 @@
           <p class="welcome-subtitle">今日の献立づくりをサポートします</p>
         </div>
 
+        <div class="dashboard-today-section">
+          <h3 class="section-title">📅 今日の献立予定</h3>
+          <div class="today-meals-list" id="dashboard-today-meals">
+            <!-- Dynamically populated today's meals -->
+            <p class="empty-message">今日の予定はありません</p>
+          </div>
+        </div>
+
         <div class="dashboard-scroll-section">
           <h3 class="section-title">📦 ストック状況</h3>
           <div class="category-summary-list" id="dashboard-categories">
@@ -227,12 +235,15 @@
       <section id="page-calendar" class="app-page">
         <div class="calendar-container">
           <div class="calendar-header">
-            <h2 class="page-title">献立カレンダー</h2>
-            <div class="calendar-nav">
-              <button id="calendar-prev-btn" class="calendar-nav-btn"><i class="fa-solid fa-chevron-left"></i></button>
-              <span id="calendar-month-label" class="calendar-month-label">2026年 6月</span>
-              <button id="calendar-next-btn" class="calendar-nav-btn"><i class="fa-solid fa-chevron-right"></i></button>
-              <button id="calendar-today-btn" class="calendar-today-btn">今日</button>
+            <h2 class="page-title" id="calendar-month-label">2026年 6月</h2>
+            <div class="calendar-controls">
+              <div class="calendar-view-toggle">
+                <button class="view-btn active" id="btn-view-month">月</button>
+                <button class="view-btn" id="btn-view-week">週</button>
+              </div>
+              <button class="btn btn-outline btn-sm" id="calendar-today-btn">今日</button>
+              <button class="btn btn-icon" id="calendar-prev-btn"><i class="fa-solid fa-chevron-left"></i></button>
+              <button class="btn btn-icon" id="calendar-next-btn"><i class="fa-solid fa-chevron-right"></i></button>
             </div>
           </div>
           <div class="calendar-grid" id="calendar-grid">
@@ -252,8 +263,8 @@
           <div class="report-summary-grid">
             <div class="report-stat-card">
               <span class="report-stat-icon">💰</span>
-              <div class="report-stat-value" id="report-stat-cost">¥0</div>
-              <div class="report-stat-label">今月の食費</div>
+              <div class="report-stat-value" style="font-size:1.15rem; line-height:1.4;"><span style="color:var(--text-secondary);font-size:0.8em">昼平均</span> <span id="stat-cost-lunch">¥0</span><br><span style="color:var(--text-secondary);font-size:0.8em">夜平均</span> <span id="stat-cost-dinner">¥0</span></div>
+              <div class="report-stat-label" style="margin-top:6px;">今月の食費 <br><small style="font-size:0.85em;color:var(--text-secondary);">合計: <span id="report-stat-cost">¥0</span></small></div>
             </div>
             <div class="report-stat-card">
               <span class="report-stat-icon">🍳</span>
@@ -262,8 +273,8 @@
             </div>
             <div class="report-stat-card">
               <span class="report-stat-icon">🔥</span>
-              <div class="report-stat-value" id="report-stat-calories">0 kcal</div>
-              <div class="report-stat-label">平均摂取カロリー</div>
+              <div class="report-stat-value" style="font-size:1.15rem; line-height:1.4;"><span style="color:var(--text-secondary);font-size:0.8em">昼</span> <span id="stat-cal-lunch">0</span>kcal<br><span style="color:var(--text-secondary);font-size:0.8em">夜</span> <span id="stat-cal-dinner">0</span>kcal</div>
+              <div class="report-stat-label" style="margin-top:6px;">平均摂取カロリー <br><small style="font-size:0.85em;color:var(--text-secondary);">全体平均: <span id="report-stat-calories">0 kcal</span></small></div>
             </div>
             <div class="report-stat-card">
               <span class="report-stat-icon">🗑️</span>
@@ -293,14 +304,17 @@
               <div class="pfc-item protein">
                 <div class="pfc-label">タンパク質</div>
                 <div class="pfc-value" id="report-pfc-protein">---</div>
+                <div style="font-size:0.75em; color:var(--text-secondary); margin-top:6px;">昼: <span id="pfc-pro-lunch">-</span><br>夜: <span id="pfc-pro-dinner">-</span></div>
               </div>
               <div class="pfc-item fat">
                 <div class="pfc-label">脂質</div>
                 <div class="pfc-value" id="report-pfc-fat">---</div>
+                <div style="font-size:0.75em; color:var(--text-secondary); margin-top:6px;">昼: <span id="pfc-fat-lunch">-</span><br>夜: <span id="pfc-fat-dinner">-</span></div>
               </div>
               <div class="pfc-item carb">
                 <div class="pfc-label">炭水化物</div>
                 <div class="pfc-value" id="report-pfc-carb">---</div>
+                <div style="font-size:0.75em; color:var(--text-secondary); margin-top:6px;">昼: <span id="pfc-carb-lunch">-</span><br>夜: <span id="pfc-carb-dinner">-</span></div>
               </div>
             </div>
           </div>
@@ -675,6 +689,41 @@
         </div>
       </form>
       <button class="modal-close-btn" id="btn-close-add-meal"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- 6. Consume Confirm Modal -->
+  <div id="modal-consume-meal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title">献立の完了と食材消費</h3>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">使用した分量を入力してください。在庫から正確に差し引かれます。</p>
+      
+      <div id="consume-confirm-list" class="consume-ingredients-list" style="max-height: 250px; overflow-y: auto; margin-bottom: 16px;">
+        <!-- Dynamically populated inputs -->
+      </div>
+      
+      <div class="form-group">
+        <label>予定外で追加使用した食材 (任意)</label>
+        <div class="form-row">
+          <div class="form-group col-7">
+            <select id="select-extra-consume-food">
+              <option value="">-- 追加食材を選択 --</option>
+            </select>
+          </div>
+          <div class="form-group col-3">
+            <input type="number" id="input-extra-consume-qty" step="any" min="0" placeholder="0">
+          </div>
+          <div class="form-group col-2">
+            <button type="button" class="btn btn-outline w-100" id="btn-add-extra-consume"><i class="fa-solid fa-plus"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions mt-3">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-consume-meal">キャンセル</button>
+        <button type="button" class="btn btn-primary" id="btn-submit-consume-meal">完了して在庫を減らす</button>
+      </div>
+      <button class="modal-close-btn" id="btn-close-consume-meal"><i class="fa-solid fa-xmark"></i></button>
     </div>
   </div>
 

@@ -421,6 +421,10 @@ class DataService {
       household_id: household.id,
       registered_by: user.id
     };
+    
+    // サニタイズ: DBに存在しないカラム（結合データやUI用フラグ）を削除
+    delete payload.categories;
+    delete payload.diffDays;
 
     let result;
     if (item.id) {

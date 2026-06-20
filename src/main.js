@@ -205,6 +205,9 @@ async function renderDashboard() {
     el.userDisplayName.textContent = '料理担当者';
   }
 
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
   // カテゴリ別食材数の集計
   el.dashboardCategories.innerHTML = '';
   currentCategories.forEach(cat => {
@@ -232,13 +235,65 @@ async function renderDashboard() {
     el.dashboardCategories.appendChild(card);
   });
 
+  // 今日の献立予定を取得・表示
+  const todayMealsContainer = document.getElementById('dashboard-today-meals');
+  if (todayMealsContainer) {
+    todayMealsContainer.innerHTML = '';
+    const pad = n => String(n).padStart(2, '0');
+    const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+    
+    const todayMeals = await db.getMealPlans(todayStr, todayStr);
+    const plannedMeals = todayMeals.filter(m => m.status === 'planned');
+
+    if (plannedMeals.length === 0) {
+      todayMealsContainer.innerHTML = '<p class="empty-message" style="font-size:0.85rem; padding:8px 0;">今日の予定はありません 🎉</p>';
+    } else {
+      plannedMeals.forEach(meal => {
+        const item = document.createElement('div');
+        item.className = 'day-detail-item';
+        item.style = 'margin-bottom:8px; background:var(--bg-card);';
+        
+        const mealTypeEmojis = { breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍪' };
+        
+        let ingText = '';
+        if (meal.ingredients && meal.ingredients.length > 0) {
+          const ingCount = meal.ingredients.length;
+          ingText = `<div style="font-size:0.75rem; color:var(--color-primary); margin-top:2px;">🛒 消費予定: ${ingCount}品</div>`;
+        }
+
+        item.innerHTML = `
+          <span class="item-icon">${mealTypeEmojis[meal.meal_type] || '🍳'}</span>
+          <div class="item-info">
+            <div class="item-title">${meal.title}</div>
+            ${ingText}
+          </div>
+          <div class="item-actions">
+            <button class="btn btn-secondary btn-sm btn-complete-meal" title="作ったことにする">
+              <i class="fa-solid fa-check"></i> 食べた
+            </button>
+          </div>
+        `;
+
+        const completeBtn = item.querySelector('.btn-complete-meal');
+        completeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // カレンダーコントローラーの機能を使ってモーダルを開く
+          if (typeof calendarController !== 'undefined') {
+            calendarController.openConsumeModal(meal, () => {
+              renderDashboard(); // 成功したらダッシュボードを再描画
+            });
+          }
+        });
+
+        todayMealsContainer.appendChild(item);
+      });
+    }
+  }
+
   // 賞味期限アラートの算出
   const alertsContainer = el.dashboardAlerts;
   alertsContainer.innerHTML = '';
   
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
   const alertItems = currentFoodItems
     .filter(item => item.expiration_date) // 期限ありのもの
     .map(item => {
